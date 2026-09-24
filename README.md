@@ -240,11 +240,6 @@ The thesis reported that MAE produced the strongest transfer in the evaluated ex
 
 - [Architecture and data flow](ARCHITECTURE_AND_FLOW.md)
 - [Data pipeline explanation](DATA_PIPELINE_EXPLANATION.md)
-- [Mask and band separation notes](MASK_BAND_SEPARATION_SUMMARY.md)
-- [Quick reference](QUICK_REFERENCE.md)
-- [Documentation index](DOCUMENTATION_INDEX.md)
-- [Completion checklist](COMPLETION_CHECKLIST.md)
-- [Final project summary](FINAL_SUMMARY.md)
 
 ## Limitations and Future Work
 
