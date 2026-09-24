@@ -11,17 +11,17 @@ import argparse
 # Add project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src2.evaluation.apple_dataset import ApplePatchDataset
-from src2.models.masked_sst import MaskedSST
+from evaluation.apple_dataset import ApplePatchDataset
+from models.masked_sst import MaskedSST
 
 # Path to your MAE checkpoint (adjust if needed)
-MAE_CHECKPOINT = "outputs/pretrain_enhanced/mae/checkpoint_best.pth"
+MAE_CHECKPOINT = "outputs/pretrain_enhanced_hudson/mae/checkpoint_best.pth"
 
-PATCH_DIR = "data/apple_patches_64x64_labeled"
-BATCH_SIZE = 32
-NUM_EPOCHS = 100
+PATCH_DIR = "data/tiff_patches"
+BATCH_SIZE = 8
+NUM_EPOCHS = 30
 LR = 1e-4
-NUM_CLASSES = 4
+NUM_CLASSES = 15
 
 
 def main():
@@ -58,13 +58,13 @@ def main():
 
     print("Building model...")
     model = MaskedSST(
-        img_size=32,
-        patch_h=4,   # MUST match MAE pretraining config
-        patch_w=4,   # MUST match MAE pretraining config
+        img_size=64,
+        patch_h=2,   # MUST match MAE pretraining config
+        patch_w=2,   # MUST match MAE pretraining config
         patch_c=16,  # MUST match MAE pretraining config
         in_channels=256,
         embed_dim=128,
-        depth=3,
+        depth=4,
         num_heads=8,
         mlp_ratio=4,
         dropout=0.1,

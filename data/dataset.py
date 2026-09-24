@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 import rasterio
 from rasterio.windows import Window
-from src2.data.transforms import Compose
+from data.transforms import Compose
 
 logger = logging.getLogger(__name__)
 

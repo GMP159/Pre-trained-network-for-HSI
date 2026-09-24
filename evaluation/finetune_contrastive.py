@@ -11,15 +11,15 @@ import argparse
 # Add project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src2.evaluation.apple_dataset import ApplePatchDataset
-from src2.models.masked_sst import MaskedSST
+from evaluation.apple_dataset import ApplePatchDataset
+from models.masked_sst import MaskedSST
 
-CONTRASTIVE_CHECKPOINT = "outputs/pretrain_enhanced/contrastive/checkpoint_best.pth"
-PATCH_DIR = "data/apple_patches_64x64_labeled"
+CONTRASTIVE_CHECKPOINT = "outputs/pretrain_enhanced_hudson/contrastive/checkpoint_best.pth"
+PATCH_DIR = "data/tiff_patches"
 BATCH_SIZE = 8
-NUM_EPOCHS = 100
+NUM_EPOCHS = 30
 LR = 1e-4
-NUM_CLASSES = 4
+NUM_CLASSES = 15
 
 
 def main():

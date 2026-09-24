@@ -6,11 +6,11 @@ ADAPTED FOR TIFF FILES: 64x64x257
 
 import torch
 import torch.nn as nn
-from src2.models.patch_embedding import PatchEmbedding3D
-from src2.models.positional_encoding import PositionalEncoding3D
-from src2.models.transformer_block import FactorizedSSTransformerBlock
-from src2.models.masking import TubeMasking, RandomMasking
-from src2.models.heads import ReconstructionHead, ClassificationHead
+from models.patch_embedding import PatchEmbedding3D
+from models.positional_encoding import PositionalEncoding3D
+from models.transformer_block import FactorizedSSTransformerBlock
+from models.masking import TubeMasking, RandomMasking
+from models.heads import ReconstructionHead, ClassificationHead
 from torch.utils.checkpoint import checkpoint
 
 class MaskedSST(nn.Module):

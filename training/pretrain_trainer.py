@@ -17,8 +17,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from src2.training.losses import reconstruction_loss, compute_reconstruction_accuracy, info_nce_loss
-from src2.data.transforms import get_contrastive_transforms
+from training.losses import reconstruction_loss, compute_reconstruction_accuracy, info_nce_loss
+from data.transforms import get_contrastive_transforms
 
 try:
     import wandb
@@ -260,7 +260,7 @@ class PretrainTrainer:
                     
                 # Accuracy calculation for MAE
                 with torch.no_grad():
-                    from src2.training.losses import patchify_target
+                    from training.losses import patchify_target
                     target = patchify_target(patches)
                     acc = compute_reconstruction_accuracy(reconstruction, target, mask)
 
@@ -365,7 +365,7 @@ class PretrainTrainer:
                         loss = reconstruction_loss(reconstruction, patches, mask, data_mask=data_mask,
                                                    patch_h=self.patch_h, patch_w=self.patch_w, patch_c=self.patch_c)
                     
-                    from src2.training.losses import patchify_target
+                    from training.losses import patchify_target
                     target = patchify_target(patches, patch_h=self.patch_h, patch_w=self.patch_w, patch_c=self.patch_c)
                     acc = compute_reconstruction_accuracy(reconstruction, target, mask)
                 
@@ -522,7 +522,7 @@ class PretrainTrainer:
         import os
         import numpy as np
         import matplotlib.pyplot as plt
-        from src2.training.losses import patchify_target, unpatchify_tokens
+        from training.losses import patchify_target, unpatchify_tokens
 
         self.model.eval()
         x = self._get_fixed_vis_batch()

@@ -11,18 +11,18 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
-from apple_dataset import ApplePatchDataset
+from evaluation.apple_dataset import ApplePatchDataset
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from models.masked_sst import MaskedSST
 
 # Config
-MAE_CHECKPOINT = "outputs/pretrain_enhanced/mae/checkpoint_epoch160.pth"
-PATCH_DIR = "data/apple_patches_64x64_labeled"
+MAE_CHECKPOINT = "outputs/pretrain_enhanced/outputs/pretrain_enhanced_hudson/mae/checkpoint_best.pth"
+PATCH_DIR = "data/tiff_patches"
 BATCH_SIZE = 32
 NUM_EPOCHS = 50
 LR = 1e-3
-NUM_CLASSES = 4
+NUM_CLASSES = 15
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 print("="*80)
@@ -43,8 +43,8 @@ test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num
 print("\nLoading MAE pre-trained model...")
 model = MaskedSST(
     img_size=64,
-    patch_h=4,
-    patch_w=4,
+    patch_h=2,
+    patch_w=2,
     patch_c=16,
     in_channels=256,
     embed_dim=128,

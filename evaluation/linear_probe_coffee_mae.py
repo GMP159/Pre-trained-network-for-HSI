@@ -12,8 +12,8 @@ import argparse
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../hsi_project
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src2.evaluation.coffee_dataset import CoffeePatchDataset
-from src2.models.masked_sst import MaskedSST
+from evaluation.coffee_dataset import CoffeePatchDataset
+from models.masked_sst import MaskedSST
 
 
 def main():

@@ -1,343 +1,293 @@
-# Pre-trained Deep Learning Networks for Hyperspectral Image Data
-
-> **Master Thesis** — Otto von Guericke University Magdeburg, 2025
->
-> **Author:** Gowtham Premkumar
->
-> **Supervisor:** Prof. Dr. rer. nat. Frank Ortmeier
->
-> **Advisers:** Dr.-Ing. Andreas Herzog, M.Sc. Konstantin Kirchheim
->
-> Fraunhofer Institute for Factory Operation and Automation (IFF)
-
----
+README.md
+# src2 - Masked Spatial-Spectral Transformer for TIFF HSI
 
 ## Overview
 
-This repository contains the implementation of a **Masked Spatial-Spectral Transformer (MaskedSST)** for self-supervised pre-training on hyperspectral image (HSI) data. The architecture integrates blockwise 3D patch embedding, factorized spatial-spectral attention, and two self-supervised pre-training strategies — **Masked Autoencoding (MAE)** and **Contrastive Learning (SimCLR)** — to learn transferable representations from unlabeled hyperspectral data.
+`src2` is an adapted version of `src1` designed specifically for **TIFF hyperspectral images** instead of zarr files.
 
-The key research questions addressed:
-1. Can self-supervised pre-training improve HSI classification in small-data regimes vs. training from scratch?
-2. Which pre-training approach is more effective: reconstruction-based (MAE) or discriminative (SimCLR)?
-3. Do the learned representations capture meaningful spatial-spectral patterns that transfer to downstream tasks?
+### Key Differences from src1
 
-### Key Results
+| Aspect | src1 | src2 |
+|--------|------|------|
+| **Input Format** | Zarr files | TIFF files (.tif, .tiff) |
+| **Image Size** | 32×32×256 | **64×64×257** (256 spectral + 1 mask) |
+| **Spectral Bands** | 256 | **256** (band 257 is mask) |
+| **Patch Embedding** | 8×8 spatial patches | **16×16 spatial patches** (for 64×64 images) |
+| **Data Location** | Various zarr sources | D:\Thesis_new\new_data |
 
-| Method             | 2×2 Patch Acc. | 4×4 Patch Acc. | Δ vs Random (2×2) |
-|--------------------|:--------------:|:--------------:|:------------------:|
-| MAE Pre-trained    | 88.45%         | 82.10%         | +26.15%            |
-| SimCLR Pre-trained | 84.20%         | 78.50%         | +21.90%            |
-| Random Baseline    | 62.30%         | 59.15%         | —                  |
-
----
-
-## Architecture
+### Directory Structure
 
 ```
-Input HSI Patch (B, 64, 64, 256)
-        │
-        ▼
-┌─────────────────────────────┐
-│  Blockwise 3D Patch Embedding│  16 separate linear projections
-│  (B, 64, 64, 256) → (B, N_s,│  (one per spectral block)
-│   N_λ, 128)                 │
-└──────────────┬──────────────┘
-               ▼
-┌─────────────────────────────┐
-│  3D Positional Encoding     │  Sinusoidal (height, width, spectral)
-└──────────────┬──────────────┘
-               ▼
-        ┌──────┴──────┐
-   MAE  │  Select Model│  Contrastive
-        └──────┬──────┘
-               │
-    ┌──────────┼──────────┐
-    ▼                     ▼
-┌──────────┐       ┌───────────────┐
-│ Random   │       │ Augmentation  │
-│ Masking  │       │ (View 1 & 2)  │
-│ (85%)    │       │               │
-└────┬─────┘       └──────┬────────┘
-     ▼                    ▼
-┌─────────────────────────────┐
-│  Factorized Transformer     │  4× blocks
-│  Encoder                    │
-│  ├─ Spatial Attention       │  O(N_spatial²)
-│  └─ Spectral Attention      │  O(N_spectral²)
-└──────────────┬──────────────┘
-               ▼
-    ┌──────────┼──────────┐
-    ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌──────────┐
-│Recon   │ │Classif.│ │Projection│
-│Head    │ │Head    │ │Head      │
-│(MAE)   │ │(Finetune)│(SimCLR)  │
-└────────┘ └────────┘ └──────────┘
-```
-
-### Model Configuration
-
-| Component            | Configuration                    |
-|----------------------|----------------------------------|
-| Input Size           | 64 × 64 × 256                   |
-| Spatial Patch Size   | 2×2 or 4×4                      |
-| Spectral Patch Size  | 16 bands per block               |
-| Embedding Dimension  | 128                              |
-| Encoder Depth        | 4 layers                         |
-| Attention Heads      | 8 per layer                      |
-| MLP Expansion Ratio  | 4                                |
-| Masking Ratio (MAE)  | 85%                              |
-| Total Parameters     | ~1.65M                           |
-
-### Factorized Attention Speedup
-
-Standard self-attention on 4,096 tokens: $O(N^2) \approx 16.8\text{M}$ operations
-
-Factorized (spatial + spectral): $O(N_{\text{spatial}}^2 + N_{\text{spectral}}^2) = O(256^2 + 16^2) \approx 65.8\text{K}$ operations — a **256× speedup**
-
----
-
-## Project Structure
-
-```
-├── models/
-│   ├── masked_sst.py            # Main MaskedSST model (encoder + heads)
-│   ├── patch_embedding.py       # Blockwise 3D spectral patch embedding
-│   ├── positional_encoding.py   # 3D sinusoidal positional encoding
-│   ├── transformer_block.py     # Factorized spatial-spectral transformer block
-│   ├── masking.py               # Tube masking & random masking strategies
-│   └── heads.py                 # Reconstruction, classification & projection heads
-│
+src2/
 ├── data/
-│   ├── dataset.py               # TIFF dataset loaders (64×64×257 GeoTIFF)
-│   └── transforms.py           # HSI-aware augmentations (spatial + spectral)
-│
+│   ├── dataset.py          # TIFF dataset loaders
+│   ├── transforms.py       # Data augmentation
+│   └── __init__.py
+├── models/
+│   ├── masked_sst.py       # Main model (256 spectral bands)
+│   ├── patch_embedding.py  # Adapted for 64×64×256 spectral
+│   ├── positional_encoding.py
+│   ├── transformer_block.py
+│   ├── masking.py
+│   ├── heads.py
+│   └── __init__.py
 ├── training/
-│   ├── losses.py                # MAE reconstruction loss, InfoNCE, CrossEntropy
-│   └── pretrain_trainer.py      # Pre-training orchestration (MAE & SimCLR)
-│
+│   ├── pretrain_trainer.py # Pre-training loop
+│   ├── losses.py          # Loss functions
+│   └── __init__.py
 ├── evaluation/
-│   ├── apple_dataset.py         # Apple disease classification dataset (4 classes)
-│   ├── coffee_dataset.py        # Coffee variety classification dataset (3 classes)
-│   ├── finetune_mae.py          # Full fine-tuning with MAE pre-trained weights
-│   ├── finetune_contrastive.py  # Full fine-tuning with SimCLR pre-trained weights
-│   ├── train_from_scratch.py    # Baseline: training without pre-training
-│   ├── train_linear_probe_mae.py        # Linear probe on MAE encoder (apple)
-│   ├── train_linear_probe_contrastive.py# Linear probe on SimCLR encoder (apple)
-│   └── linear_probe_coffee_mae.py       # Linear probe on MAE encoder (coffee)
-│
-├── outputs/
-│   ├── mae/                     # MAE pre-training loss curves
-│   └── contrastive/             # SimCLR pre-training loss curves
-│
-├── run_pretrain_enhanced.py     # Main pre-training entry point (single/multi-GPU)
-├── run_pretrain_cluster.slurm   # SLURM script for HPC pre-training
-├── run_finetune_all_mae.slurm   # SLURM script for MAE fine-tuning experiments
-└── run_finetune_all_con.slurm   # SLURM script for SimCLR fine-tuning experiments
+│   └── __init__.py
+├── scripts/
+│   └── __init__.py
+└── __init__.py
 ```
-
----
 
 ## Installation
 
-### Requirements
-
-- Python 3.10+
-- PyTorch 2.x with CUDA support
-- rasterio (GeoTIFF I/O)
-- numpy, scipy, tqdm, matplotlib, scikit-learn
+### Required Packages
 
 ```bash
-pip install torch torchvision rasterio numpy scipy tqdm matplotlib scikit-learn
+pip install torch torchvision
+pip install rasterio  # For reading TIFF files
+pip install tqdm
+pip install matplotlib numpy
+pip install wandb  # Optional, for experiment tracking
 ```
-
-Optional (experiment tracking):
-```bash
-pip install wandb
-```
-
----
-
-## Dataset
-
-### Pre-training Dataset (Unlabeled)
-
-A multi-domain collection of **4,512 hyperspectral patches** (64×64 spatial, 256 spectral bands) spanning six application domains:
-
-| Domain                | Description                                       |
-|-----------------------|---------------------------------------------------|
-| Coffee Beans          | Arabica & Canephora from Costa Rica and Ecuador   |
-| Apple Leaves          | VNIR and SWIR scans with disease variability       |
-| Paper Materials       | Industrial material signatures                     |
-| Sugar Compounds       | Pure chemical endmembers (Galactose, Glucose, etc.)|
-| Pottery (Scherben)    | Mineralogical spectral signatures                  |
-| Grapes (JKI Bluestar) | Vegetation-specific features                       |
-
-### Downstream Datasets (Labeled)
-
-**Apple Disease Classification (4 classes):**
-
-| Class | Disease     | Train | Test |
-|-------|-------------|------:|-----:|
-| 0     | Healthy     | 2,599 | 650  |
-| 1     | Scab        | 561   | 141  |
-| 2     | Rust        | 1,957 | 489  |
-| 3     | Fire Blight | 381   | 95   |
-
-**Coffee Variety Classification (3 classes):** Arabica, Immature, Robusta
-
-### Data Format
-
-- GeoTIFF files with shape `(64, 64, 257)`
-- Bands 1–256: spectral reflectance data
-- Band 257: validity mask (foreground/background)
-- Per-patch normalization: $\hat{X} = (X - \mu) / (\sigma + \epsilon)$
-
----
 
 ## Usage
 
-### Pre-training
+### 1. Loading TIFF Data
 
-**Single GPU (MAE):**
+```python
+from src2.data.dataset import create_dataloaders
+
+# Create dataloaders
+train_loader, val_loader, dataset_info = create_dataloaders(
+    data_root=r"D:\Thesis_new\new_data",
+    batch_size=32,
+    num_workers=0,
+    patch_size=32,  # Extract 32×32 patches from 64×64 images
+    simple_mode=False  # Use patched mode
+)
+
+print(f"Train samples: {dataset_info['train_samples']}")
+print(f"Val samples: {dataset_info['val_samples']}")
+print(f"Image size: {dataset_info['img_size']}×{dataset_info['img_size']}")
+print(f"Num bands: {dataset_info['num_bands']}")
+```
+
+#### Dataset Modes
+
+**Patched Mode** (`simple_mode=False`):
+- Extracts 32×32 patches from 64×64 images
+- Useful for more training samples
+- Default patch_size=32
+
+**Simple Mode** (`simple_mode=True`):
+- Uses full 64×64×256 images (spectral data only)
+- Mask band (257) handled separately
+- Fewer training samples but full spatial context
+
+### 2. Creating a Model
+
+```python
+from src2.models.masked_sst import create_model
+
+# Create model for pre-training
+model = create_model(num_classes=1)  # 1 class since using single TIFF file
+
+# For multiple TIFF files (as domains):
+model = create_model(num_classes=10)
+
+print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+```
+
+### 3. Pre-training
+
+```python
+from src2.training.pretrain_trainer import PretrainTrainer
+
+trainer = PretrainTrainer(
+    model=model,
+    train_loader=train_loader,
+    val_loader=val_loader,
+    device='cuda',
+    lr=1e-3,
+    epochs=200,
+    save_dir='outputs/checkpoints/pretrain_tiff',
+    warmup_epochs=10,
+    use_wandb=False  # Set to True if using Weights & Biases
+)
+
+trainer.train()
+```
+
+### 4. Key Model Architecture Changes for TIFF
+
+#### Input Dimensions
+- **src1**: (B, 32, 32, 256)
+- **src2**: (B, 64, 64, 256) - 256 spectral bands (band 257 is mask, handled separately)
+
+#### Patch Embedding Output
+- **src1**: (B, 64, 16, 128) - 8×8 spatial × 16 spectral
+- **src2**: (B, 256, 16, 128) - 16×16 spatial × 16 spectral
+
+**Note**: 256 spectral bands ÷ 16 = 16 groups exactly (clean division)
+
+#### Masking Strategy
+- **src1**: Random masking (75%)
+- **src2**: **Tube masking (85%)** - masks entire spatial tubes for coherence
+
+## Implementation Details
+
+### 1. TIFF Data Loading (`src2/data/dataset.py`)
+
+```python
+class TIFFHSIDataset(Dataset):
+    """
+    Loads TIFF files with shape (64, 64, 257).
+    Supports both full image and patched extraction.
+    """
+```
+
+Features:
+- Uses `rasterio` for efficient TIFF reading
+- Per-patch normalization (better for pre-training)
+- Automatic train/val split
+- Supports data augmentation
+
+### 2. Patch Embedding for 257 Bands
+
+```python
+class PatchEmbedding3D(nn.Module):
+    # For 257 bands with 16-band groups:
+    n_spectral = (257 + 16 - 1) // 16 = 17
+```
+
+Handles ceiling division for non-divisible band counts.
+
+### 3. Loss Functions
+
+```python
+def patchify_target(x, patch_h=4, patch_w=4, patch_c=16):
+    """Patchifies 64×64×257 to match model output (256, 17, 256)"""
+
+def masked_l1_loss(pred, target, mask):
+    """L1 loss on masked tokens only"""
+
+def reconstruction_loss(model_output, original_patches, mask):
+    """Complete reconstruction loss for pre-training"""
+```
+
+## Differences in Configuration
+
+### Model Parameters
+```python
+# src1 (zarr, 32×32×256)
+MaskedSST(
+    img_size=32,
+    in_channels=256,
+    patch_h=4, patch_w=4, patch_c=16,
+)
+
+# src2 (TIFF, 64×64×257)
+MaskedSST(
+    img_size=64,
+    in_channels=257,
+    patch_h=4, patch_w=4, patch_c=16,
+)
+```
+
+### Number of Patches
+```
+src1: (64 spatial patches) × (16 spectral groups) = 1,024 tokens
+src2: (256 spatial patches) × (17 spectral groups) = 4,352 tokens
+```
+
+Computational complexity:
+- **src1**: O(1024²) ≈ 1M ops
+- **src2**: O(256² + 17²) ≈ 65K ops (factorized)
+
+### Masking Strategy
+```python
+# src1
+TubeMasking(mask_ratio=0.90)  # 90% of spatial tubes masked
+
+# src2
+TubeMasking(mask_ratio=0.85)  # 85% of spatial tubes masked
+```
+
+## Testing
+
+### Test Dataset Loading
+```python
+python -m src2.data.dataset
+```
+
+### Test Model
+```python
+python -m src2.models.masked_sst
+```
+
+Expected output:
+```
+Reconstruction output: torch.Size([2, 256, 17, 256])
+Classification output: torch.Size([2, 10])
+Total parameters: 42,789,120
+```
+
+### Test Losses
+```python
+python -m src2.training.losses
+```
+
+## Important Notes
+
+1. **TIFF File Requirements**:
+   - Shape: (64, 64, 257)
+   - Data type: float32
+   - Location: D:\Thesis_new\new_data
+
+2. **Memory Considerations**:
+   - Full 64×64×257 images are ~67 MB each
+   - Batch size of 4 ≈ 268 MB GPU memory
+   - Use smaller batch sizes if memory constrained
+
+3. **Rasterio Installation**:
+   If you encounter issues with rasterio:
+   ```bash
+   pip install rasterio  # Windows pre-compiled wheels available
+   ```
+
+4. **No Changes to src1**:
+   src1 remains unchanged for zarr-based processing
+
+## Troubleshooting
+
+### "No TIFF files found"
+- Check path: D:\Thesis_new\new_data
+- Verify file extensions (.tif, .tiff case-insensitive)
+
+### "Input channels 257 doesn't match expected 256"
+- Your TIFF files have 257 bands (expected for src2)
+- Ensure using src2, not src1
+
+### Memory errors
+- Reduce batch_size in create_dataloaders()
+- Enable use_amp=True in trainer
+
+### Rasterio ImportError
 ```bash
-python run_pretrain_enhanced.py \
-    --data_root data/patches_64x64_geotiff \
-    --mode mae \
-    --batch_size 32 \
-    --epochs 200 \
-    --lr 1e-4 \
-    --patch_h 4 --patch_w 4 --patch_c 16
+pip install --upgrade rasterio
 ```
 
-**Single GPU (SimCLR):**
-```bash
-python run_pretrain_enhanced.py \
-    --data_root data/patches_64x64_geotiff \
-    --mode contrastive \
-    --batch_size 32 \
-    --epochs 200 \
-    --lr 1e-4
-```
+## Next Steps
 
-**Multi-GPU (HPC Cluster):**
-```bash
-torchrun --nproc_per_node=8 run_pretrain_enhanced.py \
-    --data_root /scratch/data/patches_64x64_geotiff \
-    --mode mae \
-    --batch_size 8 \
-    --epochs 200 \
-    --lr 1e-4
-```
-
-**SLURM Submission:**
-```bash
-sbatch run_pretrain_cluster.slurm
-```
-
-### Fine-tuning
-
-**With MAE pre-trained weights:**
-```bash
-python evaluation/finetune_mae.py --use_pretrained
-```
-
-**With SimCLR pre-trained weights:**
-```bash
-python evaluation/finetune_contrastive.py --use_pretrained
-```
-
-**From scratch (baseline):**
-```bash
-python evaluation/train_from_scratch.py
-```
-
-### Linear Probe Evaluation
-
-**Apple dataset with MAE encoder:**
-```bash
-python evaluation/train_linear_probe_mae.py --use_pretrained
-```
-
-**Apple dataset with SimCLR encoder:**
-```bash
-python evaluation/train_linear_probe_contrastive.py --use_pretrained
-```
-
-**Coffee dataset with MAE encoder:**
-```bash
-python evaluation/linear_probe_coffee_mae.py --use_pretrained
-```
-
----
-
-## Training Configuration
-
-| Parameter              | Pre-training       | Fine-tuning       |
-|------------------------|:------------------:|:-----------------:|
-| Optimizer              | AdamW              | AdamW             |
-| Learning Rate          | 1×10⁻⁴             | 1×10⁻⁴            |
-| Weight Decay           | 0.05               | 0.05              |
-| LR Schedule            | Cosine + Warmup    | Cosine Annealing  |
-| Warmup Epochs          | 10                 | —                 |
-| Gradient Clip Norm     | 1.0                | 1.0               |
-| Batch Size (effective) | 64 (8×8 GPUs)      | 8–32              |
-| Max Epochs             | 200                | 100               |
-| Mixed Precision        | Yes (AMP)          | No                |
-| Seed                   | 42                 | 42                |
-
----
-
-## Pre-training Convergence
-
-### MAE Reconstruction Loss
-
-| Patch Size | Initial Loss | Final Train Loss | Final Val Loss | Epochs |
-|:----------:|:------------:|:----------------:|:--------------:|:------:|
-| 2×2        | 0.80         | 0.1162           | 0.1085         | 60     |
-| 4×4        | 1.50         | 0.3779           | 0.3832         | 110    |
-
-### SimCLR Contrastive Loss
-
-| Patch Size | Initial Loss | Final Train Loss | Final Val Loss | Epochs |
-|:----------:|:------------:|:----------------:|:--------------:|:------:|
-| 2×2        | 1.20         | 0.3346           | 0.5420         | 30     |
-| 4×4        | 2.25         | 0.4503           | 0.6422         | 80     |
-
----
-
-## Hardware
-
-Pre-training was conducted on the HPC cluster of Otto von Guericke University Magdeburg:
-
-- **GPUs:** 8× NVIDIA Tesla V100-SXM2 (32 GB HBM2 each)
-- **CPU:** 32 cores Intel Xeon
-- **RAM:** 64 GB
-- **CUDA:** 12.2
-- **Distributed Training:** PyTorch DDP with NCCL backend
-
----
-
-## Citation
-
-```
-Premkumar, Gowtham.
-Pre-trained Deep Learning Networks for Hyperspectral Image Data.
-Master Thesis, Otto von Guericke University Magdeburg, 2025.
-```
+1. Verify TIFF files exist in D:\Thesis_new\new_data
+2. Test dataset loading with the example code
+3. Start pre-training with small epochs (test_epochs=2)
+4. Monitor training curves in outputs/checkpoints/pretrain_tiff/
 
 ## References
 
-1. Adão et al. *Hyperspectral imaging: A review on UAV-based sensors.* Remote Sensing, 2017.
-2. Chen et al. *A simple framework for contrastive learning of visual representations (SimCLR).* ICML, 2020.
-3. Chen et al. *Deep feature extraction and classification of hyperspectral images based on CNNs.* IEEE TGRS, 2016.
-4. Dosovitskiy et al. *An image is worth 16x16 words: Transformers for image recognition at scale (ViT).* ICLR, 2021.
-5. He et al. *Masked autoencoders are scalable vision learners (MAE).* CVPR, 2022.
-6. Hong et al. *SpectralFormer: Rethinking hyperspectral image classification with transformers.* IEEE TGRS, 2022.
-7. Scheibenreif et al. *Masked vision transformers for hyperspectral image classification.* CVPRW, 2023.
-
----
-
-## License
-
-This project was developed as part of a Master Thesis at Otto von Guericke University Magdeburg in collaboration with Fraunhofer IFF.
+See src1/ for the original zarr-based implementation.
